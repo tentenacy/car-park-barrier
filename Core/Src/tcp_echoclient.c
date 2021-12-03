@@ -161,6 +161,27 @@ static err_t tcp_echoclient_connected(void *arg, struct tcp_pcb *tpcb, err_t err
 		}
 		return err;
 }
+
+char *my_substr(char const *s, unsigned int start, size_t len)
+{
+    size_t    i;
+    size_t    len_s;
+    char    *ret;
+
+    if (!s)
+        return (0);
+    if (!(ret = (char *)malloc(sizeof(char) * len + 1)))
+        return (0);
+    len_s = strlen(s);
+    i = 0;
+    while (i < len && start + i < len_s)
+    {
+        ret[i] = s[start + i];
+        i++;
+    }
+    ret[i] = 0;
+    return (ret);
+}
     
 // ------------------------------------------------------------------------------------
 //  -- <6> 데이터 수신이 완료되면 호출되는 콜백 함수
@@ -182,15 +203,26 @@ static err_t   tcp_echoclient_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf 
 	 // -- <6-2> cp == <L10>이면 LED1을 Off하고 대응되는 메시지를 서버로 보낸다
 	 // 이하 비슷한 작업을 수행한다.
 
-		if(strcmp(cp,"START") == 0) {
+		if(strcmp(cp,"[CMD]START") == 0) {
 			lightOnGreen();
 			startSystem();
 			message_send_client(tpcb, 10);
 		}
-		else if(strcmp(cp,"STOP") == 0) {
+		else if(strcmp(cp,"[CMD]STOP") == 0) {
 			lightOnRed();
 			stopSystem();
 			message_send_client(tpcb, 11);
+		}
+		else if(strcmp(cp,"[CMD]RESET") == 0) {
+			setCount(0);
+			message_send_client(tpcb, 12);
+		}
+		else if(strcmp(my_substr(cp, 0, 8),"[CMD]SET") == 0) {
+			setCount(atoi(my_substr(cp, 8, strlen(cp)-8)));
+			message_send_client(tpcb, 13);
+		}
+		else if(strcmp(cp,"[CMD]USS") == 0) {
+			message_send_client(tpcb, 14);
 		}
 		// Free the p buffer 
 		pbuf_free(p);
@@ -364,11 +396,17 @@ void message_send_client(struct tcp_pcb *tpcb, int number)
 		
 			switch(number) {
 					// --  <11-1>  number의 값에 따라 대응되는 메시지를 data에 저장.
-					case 10 :	sprintf((char*)data, "System is started!");
+					case 10 :	sprintf((char*)data, "[LOG]System is started!|");
 									break;
-					case 11 :	sprintf((char*)data, "System is stopped!");
+					case 11 :	sprintf((char*)data, "[LOG]System is stopped!|");
 									break;
-					case 99 :	sprintf((char*)data, " Connected ! ");
+					case 12 :	sprintf((char*)data, "[LOG]Count is reset!|");
+									break;
+					case 13 :	sprintf((char*)data, "[LOG]Count is %d!|", getCount());
+									break;
+					case 14 :	sprintf((char*)data, "[UPDATE]%.2f|", getDistance());
+									break;
+					case 99 :	sprintf((char*)data, "[LOG]Connected!|");
 									break;							
 			}
 
@@ -396,9 +434,9 @@ void send_door_open_closed(int count)
 				es->pcb = echoclient_pcb;
 						
 				if(count == -1) {
-					sprintf((char*)data, "barrier is closed");
+					sprintf((char*)data, "[LOG]barrier is closed|");
 				} else {
-					sprintf((char*)data, "barrier is open, the count is %d.", count);
+					sprintf((char*)data, "[LOG]barrier is open, the count is %d|", count);
 				}
 
 				// -- <12-2> 데이터를 보냄

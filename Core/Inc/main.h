@@ -56,6 +56,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void Error_Handler(void);
 void startSystem(void);
 void stopSystem(void);
+void setCount(int);
+int getCount(void);
+float getDistance(void);
 
 /* USER CODE BEGIN EFP */
 
@@ -67,7 +70,7 @@ void stopSystem(void);
 #define DEST_IP_ADDR0   172
 #define DEST_IP_ADDR1   30
 #define DEST_IP_ADDR2   1
-#define DEST_IP_ADDR3   8
+#define DEST_IP_ADDR3   30
 #define DEST_PORT       7000
 
 #define GPIO_LED	GPIOD
